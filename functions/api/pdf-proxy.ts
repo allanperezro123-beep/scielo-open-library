@@ -52,7 +52,7 @@ function buildProxyHeaders(upstream: Headers, extra: Record<string, string> = {}
   const contentType = upstream.get('content-type') || 'application/pdf';
   headers.set('Content-Type', contentType);
   headers.set('Accept-Ranges', 'bytes');
-  headers.set('Cache-Control', 'public, max-age=86400');
+  headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
 
   const passthrough = ['content-length', 'content-range', 'etag', 'last-modified'];
   for (const key of passthrough) {
@@ -102,8 +102,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const cache = (caches as unknown as { default: Cache }).default;
-  const cacheKey = new Request(targetUrl.toString(), { method: 'GET' });
+  const cache = await caches.open('scielo-pdf-v1');
+  const cacheKey = new Request(
+    `${reqUrl.origin}/__pdf_cache?url=${encodeURIComponent(targetUrl.toString())}`,
+    { method: 'GET' }
+  );
   const rangeHeader = request.headers.get('Range');
 
   try {
@@ -205,7 +208,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
       if (cacheStream) {
         const cacheHeaders = buildProxyHeaders(upstreamRes.headers, {
-          'Cache-Control': 'public, max-age=86400'
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400'
         });
         const responseToCache = new Response(cacheStream, { status: 200, headers: cacheHeaders });
         context.waitUntil(cache.put(cacheKey, responseToCache).catch(() => undefined));

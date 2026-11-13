@@ -69,7 +69,7 @@ const AREA_KEYWORDS: Record<OecdAreaId, RegExp> = {
   'natural-sciences':
     /\b(matemátic|matematic|físic|fisic|químic|quimic|biolog|ecolog|zoolog|biodivers|oceano|marinh|marino|genétic|genetic|estatístic|estadistic|sbmac|clima|ambient|geolog|geograf|astron|botân|microbi)\b/i,
   humanities:
-    /\b(históri|histori|filosof|literatur|lingüíst|linguist|letras|arte|músic|music|memóri|memori|patrimôn|patrimon|ética|etica|religi|estétic|estetic|poes|romance|narrativ|cultura|arquivo|archivo|teatro|cinema)\b/i,
+    /\b(históri|histori|filos[oó]f|l[oó]gic|epistemolog|ontolog|literatur|lingüíst|linguist|letras|arte|músic|music|memóri|memori|patrimôn|patrimon|ética|etica|religi|estétic|estetic|poes|romance|narrativ|cultura|arquivo|archivo|teatro|cinema)\b/i,
   'social-sciences':
     /\b(educa|ensino|enseñanza|pedagog|social|sociolog|polític|politic|econom|direito|derecho|administra|gestão|gestion|estado|públic|public|comunica|indígen|indigen|demograf|trabalho|trabajo|gênero|genero|antirracis|justiça|justicia|cidadania|ciudadan|fgv|unesp|unicamp|rosario)\b/i
 };
