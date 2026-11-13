@@ -1,0 +1,10 @@
+name = "scielo-open-library"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "scielo-open-library-db"
+database_id = "1446810f-e580-4b40-b2fc-79724e850bd1"
+migrations_dir = "migrations"

@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+:root {
+  /* Broken Ivory Paper Palette (Light Editorial Mode) */
+  --bg-page: #F8F7F4;
+  --bg-surface: #F1EFEA;
+  --bg-elevated: #FAF9F6;
+  --bg-card: #FAF9F6;
+  --bg-hover: #ECE9E2;
+  --text-primary: #181816;
+  --text-secondary: #4D4C48;
+  --text-muted: #787670;
+  --border-hairline: rgba(24, 24, 22, 0.1);
+  --border-strong: rgba(24, 24, 22, 0.22);
+
+  /* Scholarly Mineral Accents */
+  --accent-crimson: #9E2A2B;
+  --accent-crimson-soft: rgba(158, 42, 43, 0.08);
+  --accent-ochre: #B8863B;
+  --accent-moss: #4D6B53;
+  --accent-slate: #46545B;
+
+  /* Typography */
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Motion */
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark {
+  /* Broken Charcoal Archive Palette (Dark Mode) */
+  --bg-page: #10110F;
+  --bg-surface: #171815;
+  --bg-elevated: #1D1E1A;
+  --bg-card: #161714;
+  --bg-hover: #222420;
+  --text-primary: #EDEAE4;
+  --text-secondary: #B9B5AC;
+  --text-muted: #86827A;
+  --border-hairline: rgba(237, 234, 228, 0.1);
+  --border-strong: rgba(237, 234, 228, 0.22);
+  --accent-crimson: #C94A4B;
+  --accent-crimson-soft: rgba(201, 74, 75, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s var(--ease-glide), color 0.25s var(--ease-glide);
+}
+
+/* Subtle archival dot texture (low opacity so it never competes with content) */
+.archive-texture {
+  background-image: radial-gradient(circle, rgba(24, 24, 22, 0.035) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.dark .archive-texture {
+  background-image: radial-gradient(circle, rgba(237, 234, 228, 0.035) 1px, transparent 1px);
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+}
+
+.font-code {
+  font-family: var(--font-mono);
+}
+
+/* Native search clear suppression */
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Reactive icon animation: paused by default, active on parent hover/focus */
+@keyframes subtle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.anim-reactive-spin {
+  animation: subtle-spin 6s linear infinite;
+  animation-play-state: paused;
+}
+
+.group:hover .anim-reactive-spin,
+button:hover .anim-reactive-spin,
+button:focus-visible .anim-reactive-spin {
+  animation-play-state: running;
+}
+
+/* PDF.js Text Layer overlay for search & selection */
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-size-adjust: none;
+  user-select: text;
+}
+
+.pdf-text-layer span {
+  position: absolute;
+  white-space: pre;
+  color: transparent;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.pdf-text-layer span::selection {
+  background: rgba(184, 134, 59, 0.35);
+}
+
+.pdf-text-layer mark.pdf-match {
+  background: rgba(184, 134, 59, 0.45);
+  color: transparent;
+  border-radius: 2px;
+  outline: 1px solid rgba(158, 42, 43, 0.65);
+}
+
+/* Nocturnal PDF reading canvas filter */
+.pdf-night-canvas {
+  filter: invert(0.91) hue-rotate(180deg) contrast(0.94) sepia(0.1);
+}
+
+/* Clean custom scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 118, 112, 0.28);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 118, 112, 0.48);
+}

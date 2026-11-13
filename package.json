@@ -1,0 +1,38 @@
+{
+  "name": "scielo-open-library",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Repositorio académico y biblioteca digital moderna conectada con SciELO Books, OAI-PMH y OpenAlex, desplegada en Cloudflare Pages + Workers + D1.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit && tsc -p functions/tsconfig.json --noEmit",
+    "preview": "npx wrangler pages dev dist",
+    "sync:scielo": "tsx scripts/sync-scielo.ts",
+    "db:migrate:local": "wrangler d1 execute scielo-open-library-db --local --file=migrations/0001_init.sql",
+    "db:seed:local": "wrangler d1 execute scielo-open-library-db --local --file=migrations/0002_seed.sql",
+    "db:migrate:remote": "wrangler d1 execute scielo-open-library-db --remote --file=migrations/0001_init.sql",
+    "db:seed:remote": "wrangler d1 execute scielo-open-library-db --remote --file=migrations/0002_seed.sql",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=scielo-open-library"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.12.1",
+    "lucide-react": "^1.72.0",
+    "pdfjs-dist": "^6.5.438",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261113.1",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "wrangler": "^4.162.0"
+  }
+}
