@@ -249,6 +249,62 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
+  // Fallback to Crossref SciELO Books (10.7476) if OpenAlex shared egress hits 429
+  if (results.length < 3 && q) {
+    try {
+      const crUrl = `https://api.crossref.org/prefixes/10.7476/works?query=${encodeURIComponent(q)}&rows=10&mailto=research@scielo-open-library.pages.dev`;
+      const crRes = await fetch(crUrl, { headers: oaHeaders });
+      if (crRes.ok) {
+        const crData = (await crRes.json()) as {
+          message?: {
+            items?: Array<{
+              DOI?: string;
+              title?: string[];
+              author?: Array<{ given?: string; family?: string }>;
+              publisher?: string;
+              published?: { 'date-parts'?: number[][] };
+              type?: string;
+              URL?: string;
+            }>;
+          };
+        };
+        for (const item of crData.message?.items || []) {
+          const title = item.title?.[0];
+          if (!title || !item.DOI) continue;
+          const key = item.DOI.toLowerCase();
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+
+          const publisher = item.publisher || 'SciELO Books';
+          const { area, label, subarea } = classifyOecdArea({ title, publisher });
+          results.push({
+            id: `cr-${item.DOI.replace(/[^a-zA-Z0-9]/g, '')}`,
+            oaiIdentifier: item.DOI,
+            title,
+            authors: (item.author || []).map((a) => [a.family, a.given].filter(Boolean).join(', ')).filter(Boolean),
+            publisher,
+            collection: 'SciELO Books',
+            collectionCode: 'books',
+            year: item.published?.['date-parts']?.[0]?.[0] ?? null,
+            language: 'pt',
+            docType: item.type === 'book-chapter' ? 'chapter' : 'book',
+            oecdArea: area,
+            oecdAreaLabel: label,
+            oecdSubarea: subarea,
+            abstract: `Obra registrada en SciELO Books (${publisher}, DOI: ${item.DOI}).`,
+            keywords: [],
+            doi: item.DOI,
+            scieloUrl: item.URL || `https://doi.org/${item.DOI}`,
+            citedByCount: 0,
+            sourceOrigin: 'openalex'
+          });
+        }
+      }
+    } catch {
+      // Ignore secondary fallback failure
+    }
+  }
+
   return jsonResponse({
     query: q,
     page,

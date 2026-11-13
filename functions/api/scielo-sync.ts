@@ -228,65 +228,118 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       }
     }
 
-    // Fallback to OpenAlex SciELO Books if legacy OAI/OPDS TLS cert fails from Cloudflare Edge (526)
+    // Fallback to OpenAlex SciELO Books, then Crossref 10.7476 if legacy OAI/OPDS TLS cert fails (526) or OpenAlex rate-limits (429)
     if (harvested.length === 0 && (target === 'opds' || target === 'books-oai')) {
       const oaRes = await fetch(
         'https://api.openalex.org/works?filter=doi_starts_with:10.7476,has_pdf_url:true,type:book&sort=publication_year:desc&per-page=25',
-        { headers: { 'User-Agent': 'SciELO-Open-Library/1.0' } }
+        { headers: { 'User-Agent': 'SciELO-Open-Library/1.0 (mailto:research@scielo-open-library.pages.dev)' } }
       );
-      if (!oaRes.ok) throw new Error(`OpenAlex fallback HTTP ${oaRes.status}`);
-      const oaData = (await oaRes.json()) as {
-        results?: Array<{
-          id: string;
-          doi?: string;
-          title?: string;
-          publication_year?: number;
-          language?: string;
-          cited_by_count?: number;
-          primary_location?: { pdf_url?: string; landing_page_url?: string; source?: { display_name?: string } };
-          authorships?: Array<{ author?: { display_name?: string } }>;
-          primary_topic?: { display_name?: string; field?: { display_name?: string } };
-        }>;
-      };
-      harvested = (oaData.results || [])
-        .filter((w) => w.title && w.primary_location?.pdf_url)
-        .map((w) => {
-          const pdfUrl = String(w.primary_location!.pdf_url).replace(/^http:\/\//i, 'https://');
-          const bookMatch = /books\.scielo\.org\/id\/([a-z0-9]+)/i.exec(pdfUrl);
-          const bookId = bookMatch?.[1];
-          const title = String(w.title);
-          const publisher = w.primary_location?.source?.display_name || 'SciELO Books';
-          const { area, label, subarea } = classifyOecdArea({
-            title,
-            publisher,
-            openAlexFieldName: w.primary_topic?.field?.display_name || w.primary_topic?.display_name
+      if (oaRes.ok) {
+        const oaData = (await oaRes.json()) as {
+          results?: Array<{
+            id: string;
+            doi?: string;
+            title?: string;
+            publication_year?: number;
+            language?: string;
+            cited_by_count?: number;
+            primary_location?: { pdf_url?: string; landing_page_url?: string; source?: { display_name?: string } };
+            authorships?: Array<{ author?: { display_name?: string } }>;
+            primary_topic?: { display_name?: string; field?: { display_name?: string } };
+          }>;
+        };
+        harvested = (oaData.results || [])
+          .filter((w) => w.title && w.primary_location?.pdf_url)
+          .map((w) => {
+            const pdfUrl = String(w.primary_location!.pdf_url).replace(/^http:\/\//i, 'https://');
+            const bookMatch = /books\.scielo\.org\/id\/([a-z0-9]+)/i.exec(pdfUrl);
+            const bookId = bookMatch?.[1];
+            const title = String(w.title);
+            const publisher = w.primary_location?.source?.display_name || 'SciELO Books';
+            const { area, label, subarea } = classifyOecdArea({
+              title,
+              publisher,
+              openAlexFieldName: w.primary_topic?.field?.display_name || w.primary_topic?.display_name
+            });
+            return {
+              id: bookId ? `scielo-book-${bookId}` : `oa-${w.id.split('/').pop()}`,
+              oaiIdentifier: bookId || w.id,
+              title,
+              authors: (w.authorships || []).map((a) => a.author?.display_name || '').filter(Boolean),
+              publisher,
+              collection: 'SciELO Books',
+              collectionCode: 'books',
+              year: w.publication_year ?? null,
+              language: normalizeLang(w.language),
+              docType: 'book' as const,
+              oecdArea: area,
+              oecdAreaLabel: label,
+              oecdSubarea: subarea,
+              abstract: w.primary_topic?.display_name
+                ? `Libro científico SciELO sobre ${w.primary_topic.display_name}.`
+                : 'Libro científico en Acceso Abierto de SciELO Books.',
+              keywords: w.primary_topic?.display_name ? [w.primary_topic.display_name] : [],
+              doi: w.doi?.replace(/^https?:\/\/doi\.org\//i, ''),
+              scieloUrl: bookId ? `https://books.scielo.org/id/${bookId}` : w.doi || w.id,
+              pdfUrl,
+              coverUrl: bookId ? `https://books.scielo.org/id/${bookId}/cover/cover_thumbnail.jpeg` : undefined,
+              citedByCount: w.cited_by_count ?? 0,
+              sourceOrigin: 'openalex' as const
+            };
           });
-          return {
-            id: bookId ? `scielo-book-${bookId}` : `oa-${w.id.split('/').pop()}`,
-            oaiIdentifier: bookId || w.id,
-            title,
-            authors: (w.authorships || []).map((a) => a.author?.display_name || '').filter(Boolean),
-            publisher,
-            collection: 'SciELO Books',
-            collectionCode: 'books',
-            year: w.publication_year ?? null,
-            language: normalizeLang(w.language),
-            docType: 'book' as const,
-            oecdArea: area,
-            oecdAreaLabel: label,
-            oecdSubarea: subarea,
-            abstract: w.primary_topic?.display_name
-              ? `Libro científico SciELO sobre ${w.primary_topic.display_name}.`
-              : 'Libro científico en Acceso Abierto de SciELO Books.',
-            keywords: w.primary_topic?.display_name ? [w.primary_topic.display_name] : [],
-            doi: w.doi?.replace(/^https?:\/\/doi\.org\//i, ''),
-            scieloUrl: bookId ? `https://books.scielo.org/id/${bookId}` : w.doi || w.id,
-            pdfUrl,
-            coverUrl: bookId ? `https://books.scielo.org/id/${bookId}/cover/cover_thumbnail.jpeg` : undefined,
-            citedByCount: w.cited_by_count ?? 0,
-            sourceOrigin: 'openalex' as const
+      } else {
+        diagnostics.openAlexStatus = oaRes.status;
+        const crRes = await fetch(
+          'https://api.crossref.org/prefixes/10.7476/works?filter=type:monograph&rows=25&sort=published&order=desc&mailto=research@scielo-open-library.pages.dev',
+          { headers: { 'User-Agent': 'SciELO-Open-Library/1.0 (mailto:research@scielo-open-library.pages.dev)' } }
+        );
+        if (!crRes.ok) throw new Error(`Crossref fallback HTTP ${crRes.status}`);
+        const crData = (await crRes.json()) as {
+          message?: {
+            items?: Array<{
+              DOI?: string;
+              title?: string[];
+              author?: Array<{ given?: string; family?: string }>;
+              publisher?: string;
+              published?: { 'date-parts'?: number[][] };
+              URL?: string;
+            }>;
           };
-        });
+        };
+        harvested = (crData.message?.items || [])
+          .filter((w) => w.title?.[0] && w.DOI)
+          .map((w) => {
+            const title = decodeEntities(String(w.title![0]));
+            const publisher = decodeEntities(w.publisher || 'SciELO Books');
+            const year = w.published?.['date-parts']?.[0]?.[0] ?? null;
+            const authors = (w.author || [])
+              .map((a) => [a.family, a.given].filter(Boolean).join(', '))
+              .filter(Boolean);
+            const { area, label, subarea } = classifyOecdArea({ title, publisher });
+            const doiSlug = String(w.DOI).replace(/[^a-zA-Z0-9]/g, '');
+            return {
+              id: `cr-${doiSlug}`,
+              oaiIdentifier: w.DOI,
+              title,
+              authors,
+              publisher,
+              collection: 'SciELO Books',
+              collectionCode: 'books',
+              year,
+              language: 'pt' as const,
+              docType: 'book' as const,
+              oecdArea: area,
+              oecdAreaLabel: label,
+              oecdSubarea: subarea,
+              abstract: `Monografía académica de ${publisher} registrada en SciELO Books (DOI: ${w.DOI}).`,
+              keywords: [],
+              doi: w.DOI,
+              scieloUrl: w.URL || `https://doi.org/${w.DOI}`,
+              citedByCount: 0,
+              sourceOrigin: 'openalex' as const
+            };
+          });
+      }
     }
 
     if (env.DB && harvested.length > 0) {
